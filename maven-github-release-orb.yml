@@ -1,0 +1,113 @@
+version: 2.1
+
+description: |
+  Simplify common tasks for releasing a github project to Maven Central through OSS Sonatype.
+  Source: https://github.com/bbottema-circleci/circleci-orbs
+
+executors:
+  maven-executor:
+    docker:
+    - image: circleci/openjdk:8u171-jdk
+
+jobs:
+
+  build-and-test:
+    parameters:
+      executor:
+        type: executor
+        default: maven-executor
+
+    steps:
+    - checkout
+    - restore_cache:
+        key: maven-github-release-<< parameters.cache_key >>
+    - run:
+        command: << parameters.mvn_build_test_command >>
+    - persist_to_workspace:
+        root: .
+        paths:
+        - .
+    - store_artifacts:
+        path: artifacts
+    - store_test_results:
+        path: artifacts/junit
+
+  deploy-patch-version:
+    parameters:
+      executor:
+        type: executor
+        default: maven-executor
+    steps:
+    - deploy:
+        versioncommand: mvn build-helper:parse-version versions:set -DnewVersion=\${parsedVersion.majorVersion}.\${parsedVersion.minorVersion}.\${parsedVersion.nextIncrementalVersion} versions:commit
+
+  deploy-minor-version:
+    parameters:
+      executor:
+        type: executor
+        default: maven-executor
+    steps:
+    - deploy:
+        versioncommand: mvn build-helper:parse-version versions:set -DnewVersion=\${parsedVersion.majorVersion}.\${parsedVersion.nextMinorVersion}.\${parsedVersion.incrementalVersion} versions:commit
+
+  deploy-major-version:
+    parameters:
+      executor:
+        type: executor
+        default: maven-executor
+    steps:
+    - deploy:
+        versioncommand: mvn build-helper:parse-version versions:set -DnewVersion=\${parsedVersion.nextMajorVersion}.\${parsedVersion.minorVersion}.\${parsedVersion.incrementalVersion} versions:commit
+
+
+commands:
+  configure-gpg:
+    steps:
+    - run:
+        name: Configure GPG private key for signing project artifacts in OSS Sonatype
+        command: |
+          echo << parameters.gpg_secring_ascii_base64 >> | base64 --decode | gpg --batch --no-tty --import --yes
+
+  configure-git:
+    steps:
+    - run:
+        name: Configure GIT with host fingerprint, user info and SSH key for pushing
+        command: |
+          mkdir -p ~/.ssh
+          echo "Adding github.com as known host..."
+          echo << parameters.github_fingerprint >> >> ~/.ssh/known_hosts
+          echo "Setting private SSH key for pushing new version to repo..."
+          echo << parameters.github_commitkey_base64 >> | base64 --decode >> ~/.ssh/id_rsa
+          chmod 400 ~/.ssh/id_rsa # prevents "UNPROTECTED PRIVATE KEY FILE" error
+          git config user.name "<< parameters.github_username >>"
+          git config user.email "<< parameters.github_email >>"
+
+  deploy:
+    parameters:
+      versioncommand:
+        type: string
+    steps:
+    - attach_workspace:
+        at: .
+    - restore_cache:
+        key: maven-github-release-<< parameters.cache_key >>
+    - configure-gpg
+    - configure-git
+    - run:
+        name: Release new version to Maven Central and push new project version to repo
+        command: |
+          echo "Starting new release..."
+          << parameters.versioncommand >>
+          MVN_VERSION=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive exec:exec)
+          echo "Releasing version ${MVN_VERSION}..."
+          << parameters.mvn_deploy_command >>
+          echo "Pushing new version and tag..."
+          git commit -am "released ${MVN_VERSION}"
+          git tag -a ${MVN_VERSION} -m "Release ${MVN_VERSION}"
+          ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push << parameters.github_repo >>'
+          ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push origin --tags'
+          echo "Succesfully released ${MVN_VERSION}"
+    - save_cache:
+        paths:
+        - ~/.m2
+        key: maven-github-release-<< parameters.cache_key >>
