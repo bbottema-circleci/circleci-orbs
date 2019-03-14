@@ -16,6 +16,7 @@ deploy-defaults: &JOB_DEPLOY_DEFAULTS
       default: maven-executor
     mvn-deploy-command:
       type: string
+      default: echo "mvn-deploy-command not provided" 1>&2 && exit 1
   executor: <<parameters.executor>>
 
 jobs:
@@ -27,6 +28,7 @@ jobs:
         default: maven-executor
       mvn-build-test-command:
         type: string
+        default: echo "mvn-build-test-command not provided" 1>&2 && exit 1
     executor: <<parameters.executor>>
     steps:
       - checkout
