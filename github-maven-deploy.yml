@@ -17,6 +17,8 @@ deploy-defaults: &JOB_DEPLOY_DEFAULTS
     mvn-deploy-command:
       type: string
       default: echo "mvn-deploy-command not provided" 1>&2 && exit 1
+  environment:
+    MVN_DEPLOY_COMMAND: << parameters.mvn-deploy-command >>
   executor: <<parameters.executor>>
 
 jobs:
@@ -50,21 +52,21 @@ jobs:
     steps:
       - deploy:
           internal_versioncommand: mvn build-helper:parse-version versions:set -DnewVersion=\${parsedVersion.majorVersion}.\${parsedVersion.minorVersion}.\${parsedVersion.nextIncrementalVersion} versions:commit
-          mvn-deploy-command: << mvn-deploy-command >>
+          mvn-deploy-command: $MVN_DEPLOY_COMMAND
 
   deploy-minor-version:
     <<: *JOB_DEPLOY_DEFAULTS
     steps:
       - deploy:
           internal_versioncommand: mvn build-helper:parse-version versions:set -DnewVersion=\${parsedVersion.majorVersion}.\${parsedVersion.nextMinorVersion}.\${parsedVersion.incrementalVersion} versions:commit
-          mvn-deploy-command: << mvn-deploy-command >>
+          mvn-deploy-command: $MVN_DEPLOY_COMMAND
 
   deploy-major-version:
     <<: *JOB_DEPLOY_DEFAULTS
     steps:
       - deploy:
           internal_versioncommand: mvn build-helper:parse-version versions:set -DnewVersion=\${parsedVersion.nextMajorVersion}.\${parsedVersion.minorVersion}.\${parsedVersion.incrementalVersion} versions:commit
-          mvn-deploy-command: << mvn-deploy-command >>
+          mvn-deploy-command: $MVN_DEPLOY_COMMAND
 
 
 commands:
@@ -111,7 +113,7 @@ commands:
             echo "Releasing version ${MVN_VERSION}..."
             << parameters.mvn-deploy-command >>
             echo "Pushing new version and tag..."
-            git commit -am "released ${MVN_VERSION}"
+            git commit -am "released ${MVN_VERSION} (skip ci)"
             git tag -a ${MVN_VERSION} -m "Release ${MVN_VERSION}"
             ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push $GITHUB_REPO'
             ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push origin --tags'
