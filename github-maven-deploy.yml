@@ -113,7 +113,7 @@ commands:
             echo "Releasing version ${MVN_VERSION}..."
             << parameters.mvn-deploy-command >>
             echo "Pushing new version and tag..."
-            git commit -am "released ${MVN_VERSION} (skip ci)"
+            git commit -am "released ${MVN_VERSION} [skip ci]"
             git tag -a ${MVN_VERSION} -m "Release ${MVN_VERSION}"
             ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push $GITHUB_REPO'
             ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push origin --tags'
