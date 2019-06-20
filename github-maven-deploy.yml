@@ -13,7 +13,6 @@ description: |
     - GITHUB_USERNAME: Your Github username
     - GITHUB_EMAIL: Your Github email
     - GITHUB_FINGERPRINT: Github's server fingerprint so SSH can trust this host
-    - GITHUB_REPO: The ssh uri to the Github repo to push changes to
     - GPG_PASSPHRASE: Password used for signing artifacts with GPG
     - SECRING_GPG_ASC_BASE64: Base64 GPG ASCII keyring
     - SERVER_OSSRH_PASSWORD: OSS Sonatype username
