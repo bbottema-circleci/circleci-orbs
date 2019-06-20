@@ -2,7 +2,81 @@ version: 2.1
 
 description: |
   Simplify common tasks for releasing a github project to Maven Central through OSS Sonatype.
+  With this Orb, you only need to provide environment variables, maven commands and the proper flow
   Source: https://github.com/bbottema-circleci/circleci-orbs
+
+  See http://www.bennybottema.com/2019/02/20/automating-your-github-library-releases-to-maven-central/ to find out
+  more about the steps performed and which environment variables are expected in the Context.
+
+  The following environmental variables are expected by this Orb, which are unique for each project:
+    - GITHUB_COMMIT_KEY: base64 private SSH key, matching the public key in your Github project
+    - GITHUB_USERNAME: Your Github username
+    - GITHUB_EMAIL: Your Github email
+    - GITHUB_FINGERPRINT: Github's server fingerprint so SSH can trust this host
+    - GITHUB_REPO: The ssh uri to the Github repo to push changes to
+    - GPG_PASSPHRASE: Password used for signing artifacts with GPG
+    - SECRING_GPG_ASC_BASE64: Base64 GPG ASCII keyring
+    - SERVER_OSSRH_PASSWORD: OSS Sonatype username
+    - SERVER_OSSRH_USERNAME: OSS Sonatype password
+
+  This works for simple projects, but also projects with custom artifacts like a multimodular project
+
+examples:
+  standard_flow:
+    description: |
+      Standard Github Maven project release to Maven Central
+
+      mvn-build-test-command: &mvn-build-test-command
+        mvn-build-test-command: mvn verify -DexcludeLiveServerTests=true -Dmaven.javadoc.skip=true
+
+      # OPTIONAL, useful if you have custom artifacts (or multimodular project)
+      mvn-collect-artifacts-command: &mvn-collect-artifacts-command
+        mvn-collect-artifacts-command: |
+          ...
+          cp x artifacts/...
+          cp y artifacts/...
+          cp z artifacts/...
+
+      mvn-deploy-command: &mvn-deploy-command
+        mvn-deploy-command: mvn -s .circleci/maven-release-settings.xml clean deploy -DdeployAtEnd=true -DperformRelease=true -DskipTests -Dspotbugs.skip=true
+        context: RELEASE_PROFILE_XYZ
+
+      workflows:
+        workflow:
+          jobs:
+            - github-maven-deploy/build-and-test:
+                <<: *mvn-build-test-command
+                <<: *mvn-collect-artifacts-command #OPTIONAL
+
+            - github-maven-deploy/approve-deploy-patch-version:
+                type: approval
+                requires:
+                  - github-maven-deploy/build-and-test
+            - github-maven-deploy/approve-deploy-minor-version:
+                type: approval
+                requires:
+                  - github-maven-deploy/build-and-test
+            - github-maven-deploy/approve-deploy-major-version:
+                type: approval
+                requires:
+                  - github-maven-deploy/build-and-test
+
+            - github-maven-deploy/deploy-patch-version:
+                requires:
+                  - github-maven-deploy/approve-deploy-patch-version
+                <<: *mvn-deploy-command
+            - github-maven-deploy/deploy-minor-version:
+                requires:
+                  - github-maven-deploy/approve-deploy-minor-version
+                <<: *mvn-deploy-command
+            - github-maven-deploy/deploy-major-version:
+                requires:
+                  - github-maven-deploy/approve-deploy-major-version
+                <<: *mvn-deploy-command
+    usage:
+      version: 2.1
+      orbs:
+        foo: github-maven-deploy/github-maven-deploy@1.0.1
 
 executors:
   maven-executor:
@@ -17,8 +91,6 @@ deploy-defaults: &JOB_DEPLOY_DEFAULTS
     mvn-deploy-command:
       type: string
       default: echo "mvn-deploy-command not provided" 1>&2 && exit 1
-  environment:
-    MVN_DEPLOY_COMMAND: << parameters.mvn-deploy-command >>
   executor: <<parameters.executor>>
 
 jobs:
@@ -31,17 +103,25 @@ jobs:
       mvn-build-test-command:
         type: string
         default: echo "mvn-build-test-command not provided" 1>&2 && exit 1
+      mvn-collect-artifacts-command:
+        type: string
+        default: echo "mvn-collect-artifacts-command not provided, proceeding without..."
     executor: <<parameters.executor>>
     steps:
       - checkout
       - restore_cache:
           key: maven-github-release-{{ checksum ".circleci/config.yml" }}
       - run:
+          name: Build and test script
           command: << parameters.mvn-build-test-command >>
       - persist_to_workspace:
           root: .
           paths:
             - .
+      - run:
+          name: Optional collect artifacts script
+          shell: /bin/bash -eo pipefail -O globstar
+          command: << parameters.mvn-collect-artifacts-command >>
       - store_artifacts:
           path: artifacts
       - store_test_results:
@@ -50,23 +130,23 @@ jobs:
   deploy-patch-version:
     <<: *JOB_DEPLOY_DEFAULTS
     steps:
-      - deploy:
+      - deploy-project:
           internal_versioncommand: mvn build-helper:parse-version versions:set -DnewVersion=\${parsedVersion.majorVersion}.\${parsedVersion.minorVersion}.\${parsedVersion.nextIncrementalVersion} versions:commit
-          mvn-deploy-command: $MVN_DEPLOY_COMMAND
+          mvn-deploy-command: << parameters.mvn-deploy-command >>
 
   deploy-minor-version:
     <<: *JOB_DEPLOY_DEFAULTS
     steps:
-      - deploy:
+      - deploy-project:
           internal_versioncommand: mvn build-helper:parse-version versions:set -DnewVersion=\${parsedVersion.majorVersion}.\${parsedVersion.nextMinorVersion}.\${parsedVersion.incrementalVersion} versions:commit
-          mvn-deploy-command: $MVN_DEPLOY_COMMAND
+          mvn-deploy-command: << parameters.mvn-deploy-command >>
 
   deploy-major-version:
     <<: *JOB_DEPLOY_DEFAULTS
     steps:
-      - deploy:
+      - deploy-project:
           internal_versioncommand: mvn build-helper:parse-version versions:set -DnewVersion=\${parsedVersion.nextMajorVersion}.\${parsedVersion.minorVersion}.\${parsedVersion.incrementalVersion} versions:commit
-          mvn-deploy-command: $MVN_DEPLOY_COMMAND
+          mvn-deploy-command: << parameters.mvn-deploy-command >>
 
 
 commands:
@@ -91,7 +171,7 @@ commands:
             git config user.name "$GITHUB_USERNAME"
             git config user.email "$GITHUB_EMAIL"
 
-  deploy:
+  deploy-project:
     parameters:
       mvn-deploy-command:
         type: string
