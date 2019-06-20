@@ -195,7 +195,7 @@ commands:
             echo "Pushing new version and tag..."
             git commit -am "released ${MVN_VERSION} [skip ci]"
             git tag -a ${MVN_VERSION} -m "Release ${MVN_VERSION}"
-            ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push $GITHUB_REPO'
+            ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push $CIRCLE_REPOSITORY_URL'
             ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push origin --tags'
             echo "Succesfully released ${MVN_VERSION}"
       - save_cache:
