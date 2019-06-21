@@ -13,7 +13,6 @@ description: |
     - GITHUB_USERNAME: Your Github username
     - GITHUB_EMAIL: Your Github email
     - GITHUB_FINGERPRINT: Github's server fingerprint so SSH can trust this host
-    - GITHUB_REPO: The ssh uri to the Github repo to push changes to
     - GPG_PASSPHRASE: Password used for signing artifacts with GPG
     - SECRING_GPG_ASC_BASE64: Base64 GPG ASCII keyring
     - SERVER_OSSRH_PASSWORD: OSS Sonatype username
@@ -195,7 +194,7 @@ commands:
             echo "Pushing new version and tag..."
             git commit -am "released ${MVN_VERSION} [skip ci]"
             git tag -a ${MVN_VERSION} -m "Release ${MVN_VERSION}"
-            ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push $GITHUB_REPO'
+            ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push $CIRCLE_REPOSITORY_URL'
             ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push origin --tags'
             echo "Succesfully released ${MVN_VERSION}"
       - save_cache:
