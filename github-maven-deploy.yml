@@ -137,14 +137,14 @@ jobs:
     <<: *JOB_DEPLOY_DEFAULTS
     steps:
       - deploy-project:
-          internal_versioncommand: mvn build-helper:parse-version versions:set -DnewVersion=\${parsedVersion.majorVersion}.\${parsedVersion.nextMinorVersion}.\${parsedVersion.incrementalVersion} versions:commit
+          internal_versioncommand: mvn build-helper:parse-version versions:set -DnewVersion=\${parsedVersion.majorVersion}.\${parsedVersion.nextMinorVersion}.0 versions:commit
           mvn-deploy-command: << parameters.mvn-deploy-command >>
 
   deploy-major-version:
     <<: *JOB_DEPLOY_DEFAULTS
     steps:
       - deploy-project:
-          internal_versioncommand: mvn build-helper:parse-version versions:set -DnewVersion=\${parsedVersion.nextMajorVersion}.\${parsedVersion.minorVersion}.\${parsedVersion.incrementalVersion} versions:commit
+          internal_versioncommand: mvn build-helper:parse-version versions:set -DnewVersion=\${parsedVersion.nextMajorVersion}.0.0 versions:commit
           mvn-deploy-command: << parameters.mvn-deploy-command >>
 
 

@@ -3,7 +3,7 @@ version: 2.1
   description: This is a working example from the project https://github.com/bbottema/java-reflection
 
 orbs:
-  github-maven-deploy: github-maven-deploy/github-maven-deploy@1.0.3
+  github-maven-deploy: github-maven-deploy/github-maven-deploy@1.0.5
 
 mvn-build-test-command: &mvn-build-test-command
   mvn-build-test-command: mvn verify -DexcludeLiveServerTests=true -Dmaven.javadoc.skip=true
