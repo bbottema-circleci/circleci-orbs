@@ -196,7 +196,7 @@ commands:
             git tag -a ${MVN_VERSION} -m "Release ${MVN_VERSION}"
             ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push $CIRCLE_REPOSITORY_URL'
             ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push origin --tags'
-            echo "Succesfully released ${MVN_VERSION}"
+            echo "Successfully released ${MVN_VERSION}"
       - save_cache:
           paths:
             - ~/.m2
