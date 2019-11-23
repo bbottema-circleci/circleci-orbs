@@ -8,8 +8,9 @@ description: |
   See http://www.bennybottema.com/2019/02/20/automating-your-github-library-releases-to-maven-central/ to find out
   more about the steps performed and which environment variables are expected in the Context.
 
-  The following environmental variables are expected by this Orb, which are unique for each project:
+  The following environmental variables are expected by this Orb, of which only GITHUB_COMMIT_KEY is unique for each project:
     - GITHUB_COMMIT_KEY: base64 private SSH key, matching the public key in your Github project
+    (the following can be defined once per Github user and reused by referencing a 'context')
     - GITHUB_USERNAME: Your Github username
     - GITHUB_EMAIL: Your Github email
     - GITHUB_FINGERPRINT: Github's server fingerprint so SSH can trust this host
