@@ -162,6 +162,7 @@ jobs:
       - deploy-project:
           internal_versioncommand: echo "leaving project version as-is..."
           mvn-deploy-command: << parameters.mvn-deploy-command >>
+          new_version: false
 
 
 commands:
@@ -192,6 +193,9 @@ commands:
         type: string
       internal_versioncommand:
         type: string
+      new_version:
+        default: true
+        type: boolean
     steps:
       - attach_workspace:
           at: .
@@ -207,14 +211,14 @@ commands:
             MVN_VERSION=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive exec:exec)
             echo "Releasing version ${MVN_VERSION}..."
             << parameters.mvn-deploy-command >>
-            if [[ ${MVN_VERSION} != *"SNAPSHOT"* ]]; then
+            if [[ << parameters.new_version >> = true ]]; then
               echo "Pushing new version and tag..."
               git commit -am "released ${MVN_VERSION} [skip ci]"
               git tag -a ${MVN_VERSION} -m "Release ${MVN_VERSION}"
               ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push $CIRCLE_REPOSITORY_URL'
               ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push origin --tags'
             else
-              echo "Version ${MVN_VERSION} is a SNAPSHOT, no version change or tag to commit..."
+              echo "Version ${MVN_VERSION} released as-is, skipping version change and tag..."
             fi
             echo "Successfully released ${MVN_VERSION}"
       - save_cache:
