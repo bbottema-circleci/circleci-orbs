@@ -33,6 +33,10 @@ workflows:
           type: approval
           requires:
             - github-maven-deploy/build-and-test
+      - github-maven-deploy/approve-deploy-as-is-version:
+          type: approval
+          requires:
+            - github-maven-deploy/build-and-test
 
       - github-maven-deploy/deploy-patch-version:
           requires:
@@ -45,4 +49,8 @@ workflows:
       - github-maven-deploy/deploy-major-version:
           requires:
             - github-maven-deploy/approve-deploy-major-version
+          <<: *mvn-deploy-command
+      - github-maven-deploy/deploy-as-is-version:
+          requires:
+            - github-maven-deploy/approve-deploy-as-is-version
           <<: *mvn-deploy-command

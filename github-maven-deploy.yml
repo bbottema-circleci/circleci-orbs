@@ -60,6 +60,10 @@ examples:
                 type: approval
                 requires:
                   - github-maven-deploy/build-and-test
+            - github-maven-deploy/approve-deploy-as-is-version:
+                type: approval
+                requires:
+                  - github-maven-deploy/build-and-test
 
             - github-maven-deploy/deploy-patch-version:
                 requires:
@@ -73,15 +77,19 @@ examples:
                 requires:
                   - github-maven-deploy/approve-deploy-major-version
                 <<: *mvn-deploy-command
+            - github-maven-deploy/deploy-major-version:
+                requires:
+                  - github-maven-deploy/approve-deploy-as-is-version
+                <<: *mvn-deploy-command
     usage:
       version: 2.1
       orbs:
-        foo: github-maven-deploy/github-maven-deploy@1.0.1
+        github-maven-deploy: github-maven-deploy/github-maven-deploy@1.0.5
 
 executors:
   maven-executor:
     docker:
-      - image: circleci/openjdk:8u171-jdk
+      - image: circleci/openjdk:8u232-jdk
 
 deploy-defaults: &JOB_DEPLOY_DEFAULTS
   parameters:
@@ -148,6 +156,13 @@ jobs:
           internal_versioncommand: mvn build-helper:parse-version versions:set -DnewVersion=\${parsedVersion.nextMajorVersion}.0.0 versions:commit
           mvn-deploy-command: << parameters.mvn-deploy-command >>
 
+  deploy-as-is-version:
+    <<: *JOB_DEPLOY_DEFAULTS
+    steps:
+      - deploy-project:
+          internal_versioncommand: echo "leaving project version as-is..."
+          mvn-deploy-command: << parameters.mvn-deploy-command >>
+
 
 commands:
   configure-gpg:
@@ -192,11 +207,15 @@ commands:
             MVN_VERSION=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive exec:exec)
             echo "Releasing version ${MVN_VERSION}..."
             << parameters.mvn-deploy-command >>
-            echo "Pushing new version and tag..."
-            git commit -am "released ${MVN_VERSION} [skip ci]"
-            git tag -a ${MVN_VERSION} -m "Release ${MVN_VERSION}"
-            ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push $CIRCLE_REPOSITORY_URL'
-            ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push origin --tags'
+            if [[ ${MVN_VERSION} != *"SNAPSHOT"* ]]; then
+              echo "Pushing new version and tag..."
+              git commit -am "released ${MVN_VERSION} [skip ci]"
+              git tag -a ${MVN_VERSION} -m "Release ${MVN_VERSION}"
+              ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push $CIRCLE_REPOSITORY_URL'
+              ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push origin --tags'
+            else
+              echo "Version ${MVN_VERSION} is a SNAPSHOT, no version change or tag to commit..."
+            fi
             echo "Successfully released ${MVN_VERSION}"
       - save_cache:
           paths:
