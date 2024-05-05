@@ -1,0 +1,22 @@
+1. Perform your changes to the orb, don't worry about branching, you'll commit once the orb works as expected.
+2. Run `circleci orb publish ./github-maven-deploy.yml github-maven-deploy/github-maven-deploy@dev:first`
+    - :first is just a name, you can use any name you like
+    - you can also overwrite the same name, but I found during testing it's better to use a new name each time
+3. Test with some project, e.g. https://github.com/simple-java-mail/java-utils-mail-smime
+4. Once you're happy with the changes, promote the dev version to the production version:
+    - `circleci orb publish promote github-maven-deploy/github-maven-deploy@dev:first major`
+    - `circleci orb publish promote github-maven-deploy/github-maven-deploy@dev:first minor`
+    - `circleci orb publish promote github-maven-deploy/github-maven-deploy@dev:first patch`
+5. Commit and push the changes to the orb's git repository and you're done.
+
+FYI, the Registry details for this Orb:
+    Registry URL:           https://circleci.com/developer/orbs/orb/github-maven-deploy/github-maven-deploy
+    Username/Organization:  bbottema-circleci
+    Orb context:            github-maven-deploy
+    Orb name:               github-maven-deploy
+    Orb's git:              git@github.com:bbottema-circleci/circleci-orbs.git
+    Orb's main branch:      master
+
+NOTE: If Github ever changes the host's fingerprint (again), just go to their fingerprints pages, copy the whole block
+      (of different algorithms) and paste it into the `GITHUB_FINGERPRINTS` global environment variable in CircleCI as
+      base64 encoded string. The script will decode it and write it to the known_hosts file.
