@@ -25,6 +25,8 @@ description: |
   Projects using central-publishing-maven-plugin should configure autoPublish=true and waitUntil=published.
   Otherwise Central Portal may validate the deployment while leaving the artifacts unpublished, after which this
   orb would still continue with the release commit and tag because the Maven deploy command exited successfully.
+  Central Portal can stay silent for more than CircleCI's default 10 minute no-output watchdog while publishing,
+  so deploy jobs allow 30 minutes without output by default.
 
 examples:
   standard_flow:
@@ -47,6 +49,7 @@ examples:
           mvn -s .circleci/maven-central-settings.xml clean deploy -DperformRelease=true -DskipTests -Dspotbugs.skip=true -Denforcer.skip=true -Djacoco.skip=true
           mvn license:remove # Include this line if you use the license maven plugin
         context: YOUR_GLOBAL_CONTEXT
+        deploy-no-output-timeout: 30m
 
       workflows:
         workflow:
@@ -94,7 +97,7 @@ examples:
     usage:
       version: 2.1
       orbs:
-        github-maven-deploy: github-maven-deploy/github-maven-deploy@1.3.0
+        github-maven-deploy: github-maven-deploy/github-maven-deploy@1.3.1
 
 executors:
   maven-executor:
@@ -109,6 +112,9 @@ deploy-defaults: &JOB_DEPLOY_DEFAULTS
     mvn-deploy-command:
       type: string
       default: echo "mvn-deploy-command not provided" 1>&2 && exit 1
+    deploy-no-output-timeout:
+      type: string
+      default: 30m
   executor: <<parameters.executor>>
 
 jobs:
@@ -151,6 +157,7 @@ jobs:
       - deploy-project:
           internal_versioncommand: mvn build-helper:parse-version versions:set -DnewVersion=\${parsedVersion.majorVersion}.\${parsedVersion.minorVersion}.\${parsedVersion.nextIncrementalVersion} versions:commit
           mvn-deploy-command: << parameters.mvn-deploy-command >>
+          deploy-no-output-timeout: << parameters.deploy-no-output-timeout >>
 
   deploy-minor-version:
     <<: *JOB_DEPLOY_DEFAULTS
@@ -158,6 +165,7 @@ jobs:
       - deploy-project:
           internal_versioncommand: mvn build-helper:parse-version versions:set -DnewVersion=\${parsedVersion.majorVersion}.\${parsedVersion.nextMinorVersion}.0 versions:commit
           mvn-deploy-command: << parameters.mvn-deploy-command >>
+          deploy-no-output-timeout: << parameters.deploy-no-output-timeout >>
 
   deploy-major-version:
     <<: *JOB_DEPLOY_DEFAULTS
@@ -165,6 +173,7 @@ jobs:
       - deploy-project:
           internal_versioncommand: mvn build-helper:parse-version versions:set -DnewVersion=\${parsedVersion.nextMajorVersion}.0.0 versions:commit
           mvn-deploy-command: << parameters.mvn-deploy-command >>
+          deploy-no-output-timeout: << parameters.deploy-no-output-timeout >>
 
   deploy-as-is-version:
     <<: *JOB_DEPLOY_DEFAULTS
@@ -172,6 +181,7 @@ jobs:
       - deploy-project:
           internal_versioncommand: echo "leaving project version as-is..."
           mvn-deploy-command: << parameters.mvn-deploy-command >>
+          deploy-no-output-timeout: << parameters.deploy-no-output-timeout >>
           new_version: false
 
 
@@ -203,6 +213,9 @@ commands:
     parameters:
       mvn-deploy-command:
         type: string
+      deploy-no-output-timeout:
+        type: string
+        default: 30m
       internal_versioncommand:
         type: string
       new_version:
@@ -217,6 +230,7 @@ commands:
       - configure-git
       - run:
           name: Release new version to Maven Central and push new project version to repo
+          no_output_timeout: << parameters.deploy-no-output-timeout >>
           command: |
             echo "Starting new release..."
             << parameters.internal_versioncommand >>
