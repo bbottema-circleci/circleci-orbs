@@ -1,7 +1,7 @@
 version: 2.1
 
 description: |
-  Simplify common tasks for releasing a github project to Maven Central through OSS Sonatype.
+  Simplify common tasks for releasing a GitHub project to Maven Central through Sonatype Central Portal.
   Replace `YOUR_GLOBAL_CONTEXT` with your actual CircleCI context that contains environment variables.
   
   Source: https://github.com/bbottema-circleci/circleci-orbs
@@ -17,10 +17,14 @@ description: |
     - GITHUB_FINGERPRINTS: Base64 fingerprint in all algorithms, as published by Github so SSH can trust this host
     - GPG_PASSPHRASE: Password used for signing artifacts with GPG
     - SECRING_GPG_ASC_BASE64: Base64 GPG ASCII keyring
-    - SERVER_OSSRH_USERNAME: OSS Sonatype username
-    - SERVER_OSSRH_PASSWORD: OSS Sonatype password
+    - CENTRAL_USERNAME: https://central.sonatype.com/ username
+    - CENTRAL_PASSWORD: https://central.sonatype.com/ password
 
   This works for simple projects, but also projects with custom artifacts like a multimodular project
+
+  Projects using central-publishing-maven-plugin should configure autoPublish=true and waitUntil=published.
+  Otherwise Central Portal may validate the deployment while leaving the artifacts unpublished, after which this
+  orb would still continue with the release commit and tag because the Maven deploy command exited successfully.
 
 examples:
   standard_flow:
@@ -40,7 +44,7 @@ examples:
 
       mvn-deploy-command: &mvn-deploy-command
         mvn-deploy-command:  |
-          mvn -s .circleci/maven-release-settings.xml clean deploy -DdeployAtEnd=true -DperformRelease=true -DskipTests -Dspotbugs.skip=true -Denforcer.skip=true -Djacoco.skip=true
+          mvn -s .circleci/maven-central-settings.xml clean deploy -DperformRelease=true -DskipTests -Dspotbugs.skip=true -Denforcer.skip=true -Djacoco.skip=true
           mvn license:remove # Include this line if you use the license maven plugin
         context: YOUR_GLOBAL_CONTEXT
 
@@ -175,7 +179,7 @@ commands:
   configure-gpg:
     steps:
       - run:
-          name: Configure GPG private key for signing project artifacts in OSS Sonatype
+          name: Configure GPG private key for signing project artifacts in Central Portal
           command: |
             echo $SECRING_GPG_ASC_BASE64 | base64 --decode | gpg --batch --no-tty --import --yes
 
