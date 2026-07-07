@@ -242,10 +242,11 @@ commands:
               git commit -am "released ${MVN_VERSION} [skip ci]"
               git tag -a ${MVN_VERSION} -m "Release ${MVN_VERSION}"
               ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push $CIRCLE_REPOSITORY_URL'
-              ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push origin --tags'
             else
-              echo "Version ${MVN_VERSION} released as-is, skipping version change and tag..."
+              echo "Version ${MVN_VERSION} released as-is, tagging current commit without a version change..."
+              git tag -a ${MVN_VERSION} -m "Release ${MVN_VERSION}"
             fi
+            ssh-agent sh -c 'ssh-add ~/.ssh/id_rsa; git push origin --tags'
             echo "Successfully released ${MVN_VERSION}"
       - save_cache:
           paths:
